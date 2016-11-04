@@ -25,6 +25,28 @@ def get_response_from(socket):
     return socket.recv(2048)
 
 
+class Client:
+    def __init__(self, address, port):
+        self.socket = Socket()
+        self.address = address
+        self.port = port
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.socket.__exit__()
+        logging.info('Client closed')
+
+    def connect(self):
+        logging.info('Starting client')
+        self.socket.connect((self.address, self.port))
+
+
+# with Client(server_name, server_port) as client:
+#     client.connect()
+#     logging.info('Client connected to {server}:{port}'.format(server=client.address, port=client.port))
+
 logging.info('Starting client')
 with Socket() as client_socket:
     client_socket.connect((server_name, server_port))
@@ -46,12 +68,10 @@ with Socket() as client_socket:
             url_links = parsed_url.get_links()
 
             data = {
-                    'url': url,
-                    'title': url_title,
-                    'links': url_links,
-                }
-
-            print(sys.getsizeof(pickle.dumps(data)))
+                'url': url,
+                'title': url_title,
+                'links': url_links,
+            }
 
             client_socket.sendall(pickle.dumps(data))
 
@@ -59,4 +79,3 @@ with Socket() as client_socket:
             client_socket.close()
             logging.debug("Socket has been closed")
             break
-
