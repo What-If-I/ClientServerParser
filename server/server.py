@@ -15,6 +15,9 @@ urls = [
     "http://google.com", "http://youtube.com", "http://yandex.ru", "https://www.crummy.com/", "https://pymotw.com",
     "https://www.analyticsvidhya.com", "http://stackoverflow.com/",
 ]
+# urls = [
+#     "https://www.analyticsvidhya.com", "http://stackoverflow.com/",
+# ]
 
 parsed_urls = []
 buff = bytes()
@@ -72,25 +75,27 @@ class Server:
                     if response["Command"] == "NewTask" and urls:
                         logging.debug('Sending new task')
 
-                        client_conn.send_pickled(pickle.dumps(
+                        client_conn.send_pickled(
                             {'url': urls.pop(), }
-                        ))
+                        )
+
+                    elif response["Command"] == "NewTask" and not urls:
+                        logging.debug("No more urls left. Sending close command.")
+                        client_conn.send_pickled(
+                            {"Command": "Close"}
+                        )
+
+                    elif response["Command"] == "Closed":
+                        logging.debug("Got close command. Exiting.")
+                        break
 
                 elif response.get('Task'):
-
                     task = response['Task']
 
                     logging.debug("Got new task:" + str(response))
                     parsed_urls.append(task)
 
                     logging.debug("New parsed urls file" + str(parsed_urls))
-
-                else:
-                    client_conn.send(pickle.dumps(
-                        {'done': True, }
-                    ))
-                    logging.debug('Exiting')
-                    break
 
 
 class Client:
@@ -108,13 +113,14 @@ class Client:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        logging.debug('Exiting')
         self.socket.__exit__(exc_type, exc_val, exc_tb)
 
     def receive_unpickled(self, buffer_size):
         return pickle.loads(self.receive(buffer_size))
 
     def send_pickled(self, data):
-        return pickle.dumps(self.send(data))
+        return self.send(pickle.dumps(data))
 
 
 with Server(server_name, server_port, max_connections=10) as server:

@@ -1,5 +1,8 @@
 import logging
 import pickle
+
+import time
+
 from settings import server_name, server_port
 from socket import socket as Socket
 from utils.html_parser import UrlParser
@@ -81,10 +84,13 @@ with Client(server_name, server_port) as client:
                         'Title': url_title,
                         'Links': url_links,
                     }
-
             }
 
             client.send_pickled(data)
 
-        elif server_response.get("done"):
-            break
+        elif server_response.get("Command"):
+
+            if server_response["Command"] == "Close":
+                client.send_pickled({"Command": "Closed"})
+                logging.debug("Sent Close command")
+                break  # exit loop & close connection
