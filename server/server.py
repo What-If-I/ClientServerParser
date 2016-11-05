@@ -16,15 +16,15 @@ urls = [
     "https://www.analyticsvidhya.com", "http://stackoverflow.com/",
 ]
 
-parsed_urls = {'urls': []}
+parsed_urls = []
 buff = bytes()
 
 
 class Server:
-    def __init__(self, server_address, server_port, max_connections):
+    def __init__(self, address, port, max_connections):
         self.socket = Socket()
-        self.address = server_address
-        self.port = server_port
+        self.address = address
+        self.port = port
         self.connections = max_connections
 
     def start(self):
@@ -36,6 +36,13 @@ class Server:
     def close(self):
         self.socket.close()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.socket.__exit__(exc_type, exc_val, exc_tb)
+        logging.info('Server closed')
+
     def accept(self):
         client_sock, client_addr = self.socket.accept()
         return client_sock, client_addr
@@ -46,30 +53,36 @@ class Server:
     def send(self, data, flags=0):
         return self.socket.send(data, flags)
 
-    def __enter__(self):
-        return self
+    def receive_unpickled(self, buffer_size):
+        return pickle.loads(self.receive(buffer_size))
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.socket.__exit__(exc_type, exc_val, exc_tb)
-        logging.info('Server closed')
+    def send_pickled(self, data):
+        return self.send(pickle.dumps(data))
 
     @staticmethod
     def provide_client_tasks(client_conn):
         logging.debug('Starting new thread')
         with client_conn:
             while True:
-                response = pickle.loads(client_conn.receive(65536))
+                response = client_conn.receive_unpickled(buffer_size=65536)
                 logging.debug('Client response: {response}'.format(response=response))
 
-                if response.get('new_task') and urls:
-                    logging.debug('Sending new task')
-                    client_conn.send(pickle.dumps(
-                        {'url': urls.pop(), }
-                    ))
+                if response.get("Command"):
 
-                elif response.get('url'):
+                    if response["Command"] == "NewTask" and urls:
+                        logging.debug('Sending new task')
+
+                        client_conn.send_pickled(pickle.dumps(
+                            {'url': urls.pop(), }
+                        ))
+
+                elif response.get('Task'):
+
+                    task = response['Task']
+
                     logging.debug("Got new task:" + str(response))
-                    parsed_urls['urls'].append(response['url'])
+                    parsed_urls.append(task)
+
                     logging.debug("New parsed urls file" + str(parsed_urls))
 
                 else:
@@ -96,6 +109,12 @@ class Client:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.socket.__exit__(exc_type, exc_val, exc_tb)
+
+    def receive_unpickled(self, buffer_size):
+        return pickle.loads(self.receive(buffer_size))
+
+    def send_pickled(self, data):
+        return pickle.dumps(self.send(data))
 
 
 with Server(server_name, server_port, max_connections=10) as server:

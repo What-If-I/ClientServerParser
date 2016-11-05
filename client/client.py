@@ -42,40 +42,49 @@ class Client:
         logging.info('Starting client')
         self.socket.connect((self.address, self.port))
 
+    def send(self, data, flags=0):
+        return self.socket.send(data, flags)
 
-# with Client(server_name, server_port) as client:
-#     client.connect()
-#     logging.info('Client connected to {server}:{port}'.format(server=client.address, port=client.port))
+    def receive(self, buffer_size):
+        return self.socket.recv(buffer_size)
 
-logging.info('Starting client')
-with Socket() as client_socket:
-    client_socket.connect((server_name, server_port))
-    logging.info('Connected')
+    def ask_for_task(self):
+        return self.send_pickled({'Command': "NewTask"})
 
+    def receive_unpickled(self):
+        return pickle.loads(self.receive(2048))
+
+    def send_pickled(self, data):
+        return self.send(pickle.dumps(data))
+
+
+with Client(server_name, server_port) as client:
+    client.connect()
+    logging.info('Connected to {server}:{port}'.format(server=client.address, port=client.port))
     while True:
-        ask_for_task(client_socket)
-        server_response = unpickle_response(get_response_from(client_socket))
-
-        # if server_response.get('url'):
-        #     print(str(server_response))
+        client.ask_for_task()
+        server_response = client.receive_unpickled()
 
         url = server_response.pop('url', None)
 
         if url:
             logging.debug("Got url: {url}".format(url=url))
+
             parsed_url = UrlParser(url)
             url_title = parsed_url.get_title()
             url_links = parsed_url.get_links()
 
             data = {
-                'url': url,
-                'title': url_title,
-                'links': url_links,
+                "Task":
+                    {
+                        'Url': url,
+                        'Title': url_title,
+                        'Links': url_links,
+                    }
+
             }
 
-            client_socket.sendall(pickle.dumps(data))
+            client.send_pickled(data)
 
         elif server_response.get("done"):
-            client_socket.close()
-            logging.debug("Socket has been closed")
             break
