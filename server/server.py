@@ -55,29 +55,43 @@ class Server:
         client_sock, client_addr = self.socket.accept()
         return client_sock, client_addr
 
-    def receive(self, buffer_size):
-        return self.socket.recv(buffer_size)
-
-    def send(self, data, flags=0):
-        return self.socket.send(data, flags)
-
-    def receive_unpickled(self, buffer_size):
-        return pickle.loads(self.receive(buffer_size))
-
-    def send_pickled(self, data):
-        return self.send(pickle.dumps(data))
-
 
 class Client:
-    def __init__(self, client_socket, client_address):
+    def __init__(self, client_socket, client_address, buffer_size):
         self.socket = client_socket
         self.address = client_address
+        self.buffer_size = buffer_size
 
-    def send(self, data, flags=0):
-        return self.socket.send(data, flags)
+    def send(self, payload, flags=0):
+        total_sent = 0
+        send_bytes = len(payload).to_bytes(8, byteorder='little') + payload
 
-    def receive(self, buff_size):
-        return self.socket.recv(buff_size)
+        while total_sent < len(send_bytes):
+            sent = self.socket.send(send_bytes[total_sent:])
+            if sent == 0:
+                raise RuntimeError("Socket connection broken")
+            total_sent += sent
+
+    def receive(self):
+        message = self.socket.recv(self.buffer_size)
+
+        if len(message) < self.buffer_size:
+            return message[8:]  # First 8 bytes contains payload size
+
+        else:
+            chunks = []
+            payload_size, payload = int.from_bytes(message[0:8], byteorder='little'), message[8:]
+            chunks.append(payload)
+            bytes_received = len(payload)
+
+            while bytes_received < payload_size:
+                chunk = self.socket.recv(min(payload_size - bytes_received, self.buffer_size))
+                if chunk == b'':
+                    raise RuntimeError("Socket connection broken")
+                chunks.append(chunk)
+                bytes_received += len(chunk)
+
+            return b''.join(chunks)
 
     def __enter__(self):
         return self
@@ -86,17 +100,17 @@ class Client:
         logging.debug('Exiting')
         self.socket.__exit__(exc_type, exc_val, exc_tb)
 
-    def receive_unpickled(self, buffer_size):
-        return pickle.loads(self.receive(buffer_size))
+    def receive_unpickled(self):
+        return pickle.loads(self.receive())
 
     def send_pickled(self, data):
-        return self.send(pickle.dumps(data))
+        return self.send(payload=pickle.dumps(data))
 
     def provide_client_tasks(self):
         logging.debug('Starting new thread')
         with self:
             while True:
-                response = self.receive_unpickled(buffer_size=65536)
+                response = self.receive_unpickled()
                 logging.debug('Client response: {response}'.format(response=response))
 
                 if response.get("Command"):
@@ -131,5 +145,5 @@ with Server(server_name, server_port, max_connections=5) as server:
     server.start()
 
     while True:
-        client = Client(*server.accept())
+        client = Client(*server.accept(), buffer_size=4096)
         threading.Thread(target=client.provide_client_tasks, args=()).start()

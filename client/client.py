@@ -13,23 +13,12 @@ logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)s] %(message)s')
 
 
-def unpickle_response(response):
-    return pickle.loads(response)
-
-
-def ask_for_task(socket):
-    return socket.sendall(pickle.dumps({'new_task': True}))
-
-
-def get_response_from(socket):
-    return socket.recv(2048)
-
-
 class Client:
-    def __init__(self, address, port):
+    def __init__(self, address, port, buffer_size):
         self.socket = Socket()
         self.address = address
         self.port = port
+        self.buffer_size = buffer_size
 
     def __enter__(self):
         return self
@@ -42,23 +31,48 @@ class Client:
         logging.info('Starting client')
         self.socket.connect((self.address, self.port))
 
-    def send(self, data, flags=0):
-        return self.socket.send(data, flags)
+    def send(self, payload, flags=0):
+        total_sent = 0
+        send_bytes = len(payload).to_bytes(8, byteorder='little') + payload
 
-    def receive(self, buffer_size):
-        return self.socket.recv(buffer_size)
+        while total_sent < len(send_bytes):
+            sent = self.socket.send(send_bytes[total_sent:])
+            if sent == 0:
+                raise RuntimeError("Socket connection broken")
+            total_sent += sent
+
+    def receive(self):
+        message = self.socket.recv(self.buffer_size)
+
+        if len(message) < self.buffer_size:
+            return message[8:]  # First 8 bytes contains payload size
+
+        else:
+            chunks = []
+            payload_size, payload = int.from_bytes(message[0:8], byteorder='little'), message[8:]
+            chunks.append(payload)
+            bytes_received = len(payload)
+
+            while bytes_received < payload_size:
+                chunk = self.socket.recv(min(payload_size - bytes_received, self.buffer_size))
+                if chunk == b'':
+                    raise RuntimeError("Socket connection broken")
+                chunks.append(chunk)
+                bytes_received += len(chunk)
+
+            return b''.join(chunks)
 
     def ask_for_task(self):
         return self.send_pickled({'Command': "NewTask"})
 
     def receive_unpickled(self):
-        return pickle.loads(self.receive(2048))
+        return pickle.loads(self.receive())
 
-    def send_pickled(self, data):
-        return self.send(pickle.dumps(data))
+    def send_pickled(self, bytes):
+        return self.send(pickle.dumps(bytes))
 
 
-with Client(server_name, server_port) as client:
+with Client(server_name, server_port, buffer_size=4096) as client:
     client.connect()
     logging.info('Connected to {server}:{port}'.format(server=client.address, port=client.port))
     while True:
