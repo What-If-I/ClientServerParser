@@ -1,8 +1,9 @@
-import pickle
-from settings import server_name, server_port
-import threading
 import logging
+import pickle
+import threading
 from socket import socket as Socket
+
+from settings import server_name, server_port
 
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(levelname)s] (%(threadName)-10s) %(message)s',
@@ -62,41 +63,6 @@ class Server:
     def send_pickled(self, data):
         return self.send(pickle.dumps(data))
 
-    @staticmethod
-    def provide_client_tasks(client_conn):
-        logging.debug('Starting new thread')
-        with client_conn:
-            while True:
-                response = client_conn.receive_unpickled(buffer_size=65536)
-                logging.debug('Client response: {response}'.format(response=response))
-
-                if response.get("Command"):
-
-                    if response["Command"] == "NewTask" and urls:
-                        logging.debug('Sending new task')
-
-                        client_conn.send_pickled(
-                            {'url': urls.pop(), }
-                        )
-
-                    elif response["Command"] == "NewTask" and not urls:
-                        logging.debug("No more urls left. Sending close command.")
-                        client_conn.send_pickled(
-                            {"Command": "Close"}
-                        )
-
-                    elif response["Command"] == "Closed":
-                        logging.debug("Got close command. Exiting.")
-                        break
-
-                elif response.get('Task'):
-                    task = response['Task']
-
-                    logging.debug("Got new task:" + str(response))
-                    parsed_urls.append(task)
-
-                    logging.debug("New parsed urls file" + str(parsed_urls))
-
 
 class Client:
     def __init__(self, client_socket, client_address):
@@ -122,10 +88,44 @@ class Client:
     def send_pickled(self, data):
         return self.send(pickle.dumps(data))
 
+    def provide_client_tasks(self):
+        logging.debug('Starting new thread')
+        with self:
+            while True:
+                response = self.receive_unpickled(buffer_size=65536)
+                logging.debug('Client response: {response}'.format(response=response))
 
-with Server(server_name, server_port, max_connections=10) as server:
+                if response.get("Command"):
+
+                    if response["Command"] == "NewTask" and urls:
+                        logging.debug('Sending new task')
+
+                        self.send_pickled(
+                            {'url': urls.pop(), }
+                        )
+
+                    elif response["Command"] == "NewTask" and not urls:
+                        logging.debug("No more urls left. Sending close command.")
+                        self.send_pickled(
+                            {"Command": "Close"}
+                        )
+
+                    elif response["Command"] == "Closed":
+                        logging.debug("Got close command. Exiting.")
+                        break
+
+                elif response.get('Task'):
+                    task = response['Task']
+
+                    logging.debug("Got new task:" + str(response))
+                    parsed_urls.append(task)
+
+                    logging.debug("New parsed urls file" + str(parsed_urls))
+
+
+with Server(server_name, server_port, max_connections=5) as server:
     server.start()
 
     while True:
         client = Client(*server.accept())
-        threading.Thread(target=server.provide_client_tasks, args=(client,)).start()
+        threading.Thread(target=client.provide_client_tasks, args=()).start()

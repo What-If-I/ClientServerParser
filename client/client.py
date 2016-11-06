@@ -1,14 +1,11 @@
 import logging
 import pickle
-
-import time
+from socket import socket as Socket
 
 from settings import server_name, server_port
-from socket import socket as Socket
 from utils.html_parser import UrlParser
-import sys
 
-logging.basicConfig(level=logging.DEBUG,
+logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)s] %(message)s',
                     )
 

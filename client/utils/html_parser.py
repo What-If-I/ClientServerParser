@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 
 
 class UrlParser:
-
     def __init__(self, url):
         self.url = url
         self.html = self._get_html()
@@ -29,9 +28,9 @@ class UrlParser:
 
     def get_title(self):
         return str(self.beautiful_html.title.string)
-#
-# stackoverflow = UrlParser('http://stackoverflow.com/')
-# print(type(stackoverflow.get_title()))
-#
-# for link in stackoverflow.get_links():
-#     print(type(link))
+        #
+        # stackoverflow = UrlParser('http://stackoverflow.com/')
+        # print(type(stackoverflow.get_title()))
+        #
+        # for link in stackoverflow.get_links():
+        #     print(type(link))
