@@ -33,7 +33,11 @@ class Server:
 
     def start(self):
         logging.info('Starting server')
-        self.socket.bind((self.address, self.port))
+        try:
+            self.socket.bind((self.address, self.port))
+        except OSError:
+            logging.debug("Address already taken - {address}:{port}".format(address=self.address, port=self.port))
+            exit(1)
         self.socket.listen(self.connections)
         logging.info('Server has been started. Waiting for connections.')
 
