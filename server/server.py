@@ -16,7 +16,6 @@ urls = ["http://google.com", "http://youtube.com", "http://yandex.ru", "https://
         "https://www.analyticsvidhya.com", "http://stackoverflow.com/", ]
 
 parsed_urls = []
-buff = bytes()
 
 
 class Server:
@@ -101,8 +100,6 @@ class Client:
     def __exit__(self, exc_type, exc_val, exc_tb):
         logging.debug('Exiting')
         self.socket.__exit__(exc_type, exc_val, exc_tb)
-        for url in parsed_urls:
-            print(url)
 
     def receive_unpickled(self):
         return pickle.loads(self.receive())
