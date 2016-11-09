@@ -23,14 +23,15 @@ class UrlParser:
         links = []
 
         for link in self.beautiful_html.find_all('a'):
-            links.append(link.get('href'))
-        return links
+            link = str(link.get('href'))
+
+            if link.startswith('/'):  # relative links
+                link = self.url + link[1:]
+            elif link.startswith('//'):  # links that leads to other websites
+                link = link
+
+            links.append(link)
+        return list(filter(lambda l: l.startswith("http"), links))  # return only valid links
 
     def get_title(self):
         return str(self.beautiful_html.title.string)
-        #
-        # stackoverflow = UrlParser('http://stackoverflow.com/')
-        # print(type(stackoverflow.get_title()))
-        #
-        # for link in stackoverflow.get_links():
-        #     print(type(link))
