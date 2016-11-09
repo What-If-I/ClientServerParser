@@ -55,6 +55,8 @@ class Client:
         self.socket = client_socket
         self.address = client_address
         self.buffer_size = buffer_size
+        self.latest_url = None
+        self.last_url_parsed = True
 
     def send(self, payload, flags=0):
         """
@@ -94,12 +96,23 @@ class Client:
 
             return b''.join(chunks)
 
+    @staticmethod
+    def url_back_to_q(url):
+        urls.append(url)
+        logging.debug('{url} returned to queue.'.format(url=url))
+
+    def _task_failed(self, url):
+        logging.info("Failed to pars {url}".format(url=url))
+        self.url_back_to_q(url)
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         logging.debug('Exiting')
         self.socket.__exit__(exc_type, exc_val, exc_tb)
+        if not self.last_url_parsed:
+            self._task_failed(self.latest_url)
 
     def receive_unpickled(self):
         return pickle.loads(self.receive())
@@ -107,21 +120,36 @@ class Client:
     def send_pickled(self, data):
         return self.send(payload=pickle.dumps(data))
 
+    @staticmethod
+    def get_new_url():
+        return urls.pop()
+
+    @staticmethod
+    def save_parsed_urls(task):
+        parsed_urls.append(task)
+
     def provide_client_tasks(self):
         logging.debug('Starting new thread')
+
         with self:
             while True:
                 response = self.receive_unpickled()
                 logging.debug('Client response: {response}'.format(response=response))
 
                 if response.get("Command"):
-
                     if response["Command"] == "NewTask" and urls:
+
+                        if not self.last_url_parsed:
+                            self._task_failed(self.latest_url)
+
+                        self.latest_url = self.get_new_url()
                         logging.debug('Sending new task')
 
                         self.send_pickled(
-                            {'url': urls.pop(), }
+                            {'url': self.latest_url, }
                         )
+
+                        self.last_url_parsed = False
 
                     elif response["Command"] == "NewTask" and not urls:
                         logging.debug("No more urls left. Sending close command.")
@@ -137,7 +165,8 @@ class Client:
                     task = response['Task']
 
                     logging.debug("Got new task:" + str(response))
-                    parsed_urls.append(task)
+                    self.save_parsed_urls(task)
+                    self.last_url_parsed = True
 
 
 with Server(server_name, server_port, max_connections=5) as server:
