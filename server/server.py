@@ -12,13 +12,8 @@ logging.basicConfig(level=logging.DEBUG,
 logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)s] %(message)s')
 
-urls = [
-    "http://google.com", "http://youtube.com", "http://yandex.ru", "https://www.crummy.com/", "https://pymotw.com",
-    "https://www.analyticsvidhya.com", "http://stackoverflow.com/",
-]
-# urls = [
-#     "https://www.analyticsvidhya.com", "http://stackoverflow.com/",
-# ]
+urls = ["http://google.com", "http://youtube.com", "http://yandex.ru", "https://www.crummy.com/", "https://pymotw.com",
+        "https://www.analyticsvidhya.com", "http://stackoverflow.com/", ]
 
 parsed_urls = []
 buff = bytes()
@@ -63,6 +58,9 @@ class Client:
         self.buffer_size = buffer_size
 
     def send(self, payload, flags=0):
+        """
+        Send message(payload) to socket. Appends 8 bytes with information of message length to the beginning.
+        """
         total_sent = 0
         send_bytes = len(payload).to_bytes(8, byteorder='little') + payload
 
@@ -73,10 +71,14 @@ class Client:
             total_sent += sent
 
     def receive(self):
+        """
+        Receive data by chunks of buffer size.
+        :return: full message without leading 8 bytes (message length)
+        """
         message = self.socket.recv(self.buffer_size)
 
         if len(message) < self.buffer_size:
-            return message[8:]  # First 8 bytes contains payload size
+            return message[8:]  # First 8 bytes contains payload length
 
         else:
             chunks = []
@@ -99,6 +101,8 @@ class Client:
     def __exit__(self, exc_type, exc_val, exc_tb):
         logging.debug('Exiting')
         self.socket.__exit__(exc_type, exc_val, exc_tb)
+        for url in parsed_urls:
+            print(url)
 
     def receive_unpickled(self):
         return pickle.loads(self.receive())
@@ -138,12 +142,10 @@ class Client:
                     logging.debug("Got new task:" + str(response))
                     parsed_urls.append(task)
 
-                    logging.debug("New parsed urls file" + str(parsed_urls))
-
 
 with Server(server_name, server_port, max_connections=5) as server:
     server.start()
 
     while True:
         client = Client(*server.accept(), buffer_size=4096)
-        threading.Thread(target=client.provide_client_tasks, args=()).start()
+        threading.Thread(target=client.provide_client_tasks).start()

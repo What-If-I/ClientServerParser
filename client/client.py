@@ -32,6 +32,9 @@ class Client:
         self.socket.connect((self.address, self.port))
 
     def send(self, payload, flags=0):
+        """
+        Send message(payload) to socket. Appends 8 bytes with information of message length to the beginning.
+        """
         total_sent = 0
         send_bytes = len(payload).to_bytes(8, byteorder='little') + payload
 
@@ -42,6 +45,10 @@ class Client:
             total_sent += sent
 
     def receive(self):
+        """
+        Receive data by chunks of buffer size.
+        :return: full message without leading 8 bytes (message length)
+        """
         message = self.socket.recv(self.buffer_size)
 
         if len(message) < self.buffer_size:
