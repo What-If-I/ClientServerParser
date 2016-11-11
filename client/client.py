@@ -2,16 +2,9 @@ import logging
 import pickle
 from socket import socket as Socket
 
-from settings import server_name, server_port
-from utils.html_parser import UrlParser
-
-logging.basicConfig(level=logging.INFO,
+logging.basicConfig(level=logging.DEBUG,
                     format='[%(levelname)s] %(message)s',
                     )
-
-logging.basicConfig(level=logging.INFO,
-                    format='[%(levelname)s] %(message)s')
-
 
 class Client:
     def __init__(self, address, port, buffer_size):
@@ -29,7 +22,13 @@ class Client:
 
     def connect(self):
         logging.info('Starting client')
-        self.socket.connect((self.address, self.port))
+        try:
+            self.socket.connect((self.address, self.port))
+            logging.info('Connected to {server}:{port}'.format(server=self.address, port=self.port))
+        except ConnectionRefusedError:
+            logging.warning('Failed to connect.')
+            logging.exception('Exception: ')
+            exit(1)
 
     def send(self, payload, flags=0):
         """
@@ -39,9 +38,14 @@ class Client:
         send_bytes = len(payload).to_bytes(8, byteorder='little') + payload
 
         while total_sent < len(send_bytes):
-            sent = self.socket.send(send_bytes[total_sent:])
+            try:
+                sent = self.socket.send(send_bytes[total_sent:])
+            except ConnectionResetError:
+                logging.warning("Connection aborted.")
+                logging.exception("Exception:")
+                exit(1)
             if sent == 0:
-                raise RuntimeError("Socket connection broken")
+                raise RuntimeError("Connection broken")
             total_sent += sent
 
     def receive(self):
@@ -77,38 +81,3 @@ class Client:
 
     def send_pickled(self, bytes):
         return self.send(pickle.dumps(bytes))
-
-
-with Client(server_name, server_port, buffer_size=4096) as client:
-    client.connect()
-    logging.info('Connected to {server}:{port}'.format(server=client.address, port=client.port))
-    while True:
-        client.ask_for_task()
-        server_response = client.receive_unpickled()
-
-        url = server_response.pop('url', None)
-
-        if url:
-            logging.debug("Got url: {url}".format(url=url))
-
-            parsed_url = UrlParser(url)
-            url_title = parsed_url.get_title()
-            url_links = parsed_url.get_links()
-
-            data = {
-                "Task":
-                    {
-                        'Url': url,
-                        'Title': url_title,
-                        'Links': url_links,
-                    }
-            }
-
-            client.send_pickled(data)
-
-        elif server_response.get("Command"):
-
-            if server_response["Command"] == "Close":
-                client.send_pickled({"Command": "Closed"})
-                logging.debug("Sent Close command")
-                break  # exit loop & close connection

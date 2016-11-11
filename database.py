@@ -14,7 +14,6 @@ class WebSites(Base):
     id = Column(Integer, primary_key=True)
     url = Column(String)
     title = Column(String)
-    bytes = Column(String)
 
 
 class Links(Base):
@@ -23,6 +22,5 @@ class Links(Base):
     id = Column(Integer, primary_key=True)
     site_id = Column(Integer, ForeignKey('websites.id'))
     url = Column(String)
-    appeared_times = Column(Integer)
 
 Base.metadata.create_all(engine)

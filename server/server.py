@@ -66,9 +66,14 @@ class Client:
         send_bytes = len(payload).to_bytes(8, byteorder='little') + payload
 
         while total_sent < len(send_bytes):
-            sent = self.socket.send(send_bytes[total_sent:])
+            try:
+                sent = self.socket.send(send_bytes[total_sent:])
+            except ConnectionResetError:
+                logging.warning("Connection aborted.")
+                logging.exception("Exception:")
+                exit(1)
             if sent == 0:
-                raise RuntimeError("Socket connection broken")
+                raise RuntimeError("Connection broken")
             total_sent += sent
 
     def receive(self):
@@ -167,11 +172,3 @@ class Client:
                     logging.debug("Got new task:" + str(response))
                     self.save_parsed_urls(task)
                     self.last_url_parsed = True
-
-
-with Server(server_name, server_port, max_connections=5) as server:
-    server.start()
-
-    while True:
-        client = Client(*server.accept(), buffer_size=4096)
-        threading.Thread(target=client.provide_client_tasks).start()
