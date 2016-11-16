@@ -39,5 +39,5 @@ with Client(server_name, server_port, buffer_size=4096) as client:
 
             if server_response["Command"] == "Close":
                 client.send_pickled({"Command": "Closed"})
-                logging.debug("Sent Close command")
+                logging.debug("Got close command")
                 break  # exit loop & close connection

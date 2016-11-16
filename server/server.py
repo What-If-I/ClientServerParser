@@ -1,9 +1,6 @@
 import logging
 import pickle
-import threading
 from socket import socket as Socket
-
-from settings import server_name, server_port
 
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(levelname)s] (%(threadName)-10s) %(message)s',
@@ -11,11 +8,6 @@ logging.basicConfig(level=logging.DEBUG,
 
 logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)s] %(message)s')
-
-urls = ["http://google.com", "http://youtube.com", "http://yandex.ru", "https://www.crummy.com/", "https://pymotw.com",
-        "https://www.analyticsvidhya.com", "http://stackoverflow.com/", ]
-
-parsed_urls = []
 
 
 class Server:
@@ -55,8 +47,6 @@ class Client:
         self.socket = client_socket
         self.address = client_address
         self.buffer_size = buffer_size
-        self.latest_url = None
-        self.last_url_parsed = True
 
     def send(self, payload, flags=0):
         """
@@ -101,74 +91,15 @@ class Client:
 
             return b''.join(chunks)
 
-    @staticmethod
-    def url_back_to_q(url):
-        urls.append(url)
-        logging.debug('{url} returned to queue.'.format(url=url))
-
-    def _task_failed(self, url):
-        logging.info("Failed to pars {url}".format(url=url))
-        self.url_back_to_q(url)
-
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         logging.debug('Exiting')
         self.socket.__exit__(exc_type, exc_val, exc_tb)
-        if not self.last_url_parsed:
-            self._task_failed(self.latest_url)
 
     def receive_unpickled(self):
         return pickle.loads(self.receive())
 
     def send_pickled(self, data):
         return self.send(payload=pickle.dumps(data))
-
-    @staticmethod
-    def get_new_url():
-        return urls.pop()
-
-    @staticmethod
-    def save_parsed_urls(task):
-        parsed_urls.append(task)
-
-    def provide_client_tasks(self):
-        logging.debug('Starting new thread')
-
-        with self:
-            while True:
-                response = self.receive_unpickled()
-                logging.debug('Client response: {response}'.format(response=response))
-
-                if response.get("Command"):
-                    if response["Command"] == "NewTask" and urls:
-
-                        if not self.last_url_parsed:
-                            self._task_failed(self.latest_url)
-
-                        self.latest_url = self.get_new_url()
-                        logging.debug('Sending new task')
-
-                        self.send_pickled(
-                            {'url': self.latest_url, }
-                        )
-
-                        self.last_url_parsed = False
-
-                    elif response["Command"] == "NewTask" and not urls:
-                        logging.debug("No more urls left. Sending close command.")
-                        self.send_pickled(
-                            {"Command": "Close"}
-                        )
-
-                    elif response["Command"] == "Closed":
-                        logging.debug("Got close command. Exiting.")
-                        break
-
-                elif response.get('Task'):
-                    task = response['Task']
-
-                    logging.debug("Got new task:" + str(response))
-                    self.save_parsed_urls(task)
-                    self.last_url_parsed = True
