@@ -1,12 +1,13 @@
 from client import Client
-from settings import server_name, server_port
+from settings import server_name, server_port, DEBUG
 from utils.html_parser import UrlParser
 
 import logging
 
-logging.basicConfig(level=logging.INFO,
-                    format='[%(levelname)s] %(message)s',
-                    )
+if DEBUG:
+    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s', )
+
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s', )
 
 with Client(server_name, server_port, buffer_size=4096) as client:
     client.connect()
@@ -27,9 +28,9 @@ with Client(server_name, server_port, buffer_size=4096) as client:
             data = {
                 "Task":
                     {
-                        'Url': url,
-                        'Title': url_title,
-                        'Links': url_links,
+                        'url': url,
+                        'title': url_title,
+                        'links': url_links,
                     }
             }
 

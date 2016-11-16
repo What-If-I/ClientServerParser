@@ -2,9 +2,6 @@ import logging
 import pickle
 from socket import socket as Socket
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='[%(levelname)s] %(message)s',
-                    )
 
 class Client:
     def __init__(self, address, port, buffer_size):

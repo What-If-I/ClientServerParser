@@ -1,9 +1,6 @@
-from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy import ForeignKey
-
-engine = create_engine('sqlite:///websites.db', echo=True)
 
 Base = declarative_base()
 
@@ -14,7 +11,7 @@ class WebSites(Base):
     id = Column(Integer, primary_key=True)
     url = Column(String)
     title = Column(String)
-    parsed = Column(Boolean)
+    parsed = Column(Boolean, default=False)
 
 
 class Links(Base):
@@ -22,6 +19,4 @@ class Links(Base):
 
     id = Column(Integer, primary_key=True)
     site_id = Column(Integer, ForeignKey('websites.id'))
-    url = Column(String)
-
-Base.metadata.create_all(engine)
+    link = Column(String)

@@ -2,13 +2,6 @@ import logging
 import pickle
 from socket import socket as Socket
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='[%(levelname)s] (%(threadName)-10s) %(message)s',
-                    )
-
-logging.basicConfig(level=logging.INFO,
-                    format='[%(levelname)s] %(message)s')
-
 
 class Server:
     def __init__(self, address, port, max_connections):
@@ -71,7 +64,13 @@ class Client:
         Receive data by chunks of buffer size.
         :return: full message without leading 8 bytes (message length)
         """
-        message = self.socket.recv(self.buffer_size)
+        message = ""
+        try:
+            message = self.socket.recv(self.buffer_size)
+        except ConnectionResetError:
+            logging.warning("Connection aborted.")
+            logging.exception("Exception: ")
+            exit(1)
 
         if len(message) < self.buffer_size:
             return message[8:]  # First 8 bytes contains payload length
