@@ -43,9 +43,10 @@ class Client:
 
     def send(self, payload, flags=0):
         """
-        Send message(payload) to socket. Appends 8 bytes with information of message length to the beginning.
+        Send message(payload) to socket. 
         """
         total_sent = 0
+        # First 8 bytes contains information of payload length.
         send_bytes = len(payload).to_bytes(8, byteorder='little') + payload
 
         while total_sent < len(send_bytes):
@@ -56,7 +57,7 @@ class Client:
                 logging.exception("Exception:")
                 exit(1)
             if sent == 0:
-                raise RuntimeError("Connection broken")
+                raise RuntimeError("Connection broken.")
             total_sent += sent
 
     def receive(self):
@@ -84,7 +85,7 @@ class Client:
             while bytes_received < payload_size:
                 chunk = self.socket.recv(min(payload_size - bytes_received, self.buffer_size))
                 if chunk == b'':
-                    raise RuntimeError("Socket connection broken")
+                    raise RuntimeError("Socket connection broken.")
                 chunks.append(chunk)
                 bytes_received += len(chunk)
 
