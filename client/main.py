@@ -1,15 +1,10 @@
 from client import Client
-from settings import server_name, server_port, DEBUG
+from settings import SERVER_NAME, SERVER_PORT
 from utils.html_parser import UrlParser
 
 import logging
 
-if DEBUG:
-    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s', )
-
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s', )
-
-with Client(server_name, server_port, buffer_size=4096) as client:
+with Client(SERVER_NAME, SERVER_PORT, buffer_size=4096) as client:
     client.connect()
 
     while True:
@@ -21,20 +16,25 @@ with Client(server_name, server_port, buffer_size=4096) as client:
         if url:
             logging.info("Got url: {url}".format(url=url))
 
-            parsed_url = UrlParser(url)
-            url_title = parsed_url.get_title()
-            url_links = parsed_url.get_links()
+            try:
+                parsed_url = UrlParser(url)
+            except ConnectionError:
+                client.send_pickled({'Command': 'AbortTask'})
+                continue
+            else:
+                url_title = parsed_url.get_title()
+                url_links = parsed_url.get_links()
 
-            data = {
-                "Task":
-                    {
-                        'url': url,
-                        'title': url_title,
-                        'links': url_links,
-                    }
-            }
+                data = {
+                    "Task":
+                        {
+                            'url': url,
+                            'title': url_title,
+                            'links': url_links,
+                        }
+                }
 
-            client.send_pickled(data)
+                client.send_pickled(data)
 
         elif server_response.get("Command"):
 

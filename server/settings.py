@@ -1,4 +1,14 @@
-server_name = 'localhost'
-server_port = 4020
-db_engine = 'sqlite:///../websites.db'
+import logging
+
+SERVER_NAME = 'localhost'
+SERVER_PORT = 4020
+DB_ENGINE = 'sqlite:///../websites.db'
 DEBUG = False
+
+
+if DEBUG:
+    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] (%(threadName)-10s) %(message)s', )
+
+logging.basicConfig(level=logging.INFO,
+                    format='[%(levelname)s] %(message)s')
+

@@ -1,5 +1,5 @@
 from server import Server, Client
-from settings import server_name, server_port, db_engine, DEBUG
+from settings import SERVER_NAME, SERVER_PORT, DB_ENGINE
 
 from threading import Thread
 
@@ -9,17 +9,11 @@ from sqlalchemy.orm import sessionmaker
 
 import logging
 
-if DEBUG:
-    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] (%(threadName)-10s) %(message)s', )
-
-logging.basicConfig(level=logging.INFO,
-                    format='[%(levelname)s] %(message)s')
-
-engine = create_engine(db_engine, echo=False)
+engine = create_engine(DB_ENGINE, echo=False)
 Session = sessionmaker(engine)
 
 session = Session()
-urls_to_parse = [url.url for url in session.query(WebSites.url).filter(WebSites.parsed != True).all()]
+urls_to_parse = [url.url for url in session.query(WebSites.url).filter(WebSites.parsed is not True).all()]
 
 
 class TaskProvider:
@@ -40,13 +34,13 @@ class TaskProvider:
             self._task_failed(self.latest_url)
 
     def _task_failed(self, url):
-        logging.info("Failed to pars {url}".format(url=url))
+        logging.info(f"Failed to pars {url}")
         self.url_back_to_q(url)
 
     @staticmethod
     def url_back_to_q(url):
         urls_to_parse.append(url)
-        logging.debug('{url} returned to queue.'.format(url=url))
+        logging.debug(f'{url} returned to queue.')
 
     @staticmethod
     def get_new_url():
@@ -94,6 +88,10 @@ class TaskProvider:
                         logging.debug("Got close command. Exiting.")
                         break
 
+                    elif response["Command"] == "AbortTask":
+                        logging.debug(f"Got Abort command. Task: {self.latest_url} aborted.")
+                        continue
+
                 elif response.get('Task'):
                     task = response['Task']
 
@@ -102,7 +100,7 @@ class TaskProvider:
                     self.last_url_parsed = True
 
 
-with Server(server_name, server_port, max_connections=5) as server:
+with Server(SERVER_NAME, SERVER_PORT, max_connections=5) as server:
     server.start()
 
     while urls_to_parse:

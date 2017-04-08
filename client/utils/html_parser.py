@@ -10,14 +10,13 @@ class UrlParser:
 
     def _get_html(self):
         page_request = requests.get(self.url)
-        if page_request.status_code == 200:
+        if page_request.status_code in range(200, 230):
             return page_request.text
         else:
-            return None
+            raise ConnectionError(f"Server returned: {page_request.status_code}")
 
     def _beautify_html(self):
-        if self.html:
-            return BeautifulSoup(self.html, 'html.parser')
+        return BeautifulSoup(self.html, 'html.parser')
 
     def get_links(self):
         links = []
@@ -31,7 +30,7 @@ class UrlParser:
                 link = link
 
             links.append(link)
-        return list(filter(lambda l: l.startswith("http"), links))  # return only valid links
+        return list(filter(lambda l: l in ('http', 'https'), links))  # return only valid links
 
     def get_title(self):
         return str(self.beautiful_html.title.string)
