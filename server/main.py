@@ -13,7 +13,7 @@ engine = create_engine(DB_ENGINE, echo=False)
 Session = sessionmaker(engine)
 
 session = Session()
-urls_to_parse = [url.url for url in session.query(WebSites.url).filter(WebSites.parsed is not True).all()]
+urls_to_parse = [url.url for url in session.query(WebSites.url).filter(WebSites.parsed != True).all()]
 
 
 class TaskProvider:
@@ -90,6 +90,7 @@ class TaskProvider:
 
                     elif response["Command"] == "AbortTask":
                         logging.debug(f"Got Abort command. Task: {self.latest_url} aborted.")
+                        self.last_url_parsed = True
                         continue
 
                 elif response.get('Task'):

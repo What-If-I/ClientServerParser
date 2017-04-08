@@ -2,7 +2,7 @@ import logging
 
 SERVER_NAME = 'localhost'
 SERVER_PORT = 4020
-DEBUG = False
+DEBUG = True
 
 if DEBUG:
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s', )
