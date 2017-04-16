@@ -10,6 +10,13 @@ class Server:
         self.port = port
         self.connections = max_connections
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.socket.__exit__(exc_type, exc_val, exc_tb)
+        logging.info('Server closed')
+
     def start(self):
         logging.info('Starting server')
         try:
@@ -23,13 +30,6 @@ class Server:
     def close(self):
         self.socket.close()
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.socket.__exit__(exc_type, exc_val, exc_tb)
-        logging.info('Server closed')
-
     def accept(self):
         client_sock, client_addr = self.socket.accept()
         return client_sock, client_addr
@@ -40,6 +40,13 @@ class Client:
         self.socket = client_socket
         self.address = client_address
         self.buffer_size = buffer_size
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        logging.debug('Exiting')
+        self.socket.__exit__(exc_type, exc_val, exc_tb)
 
     def send(self, payload, flags=0):
         """
@@ -90,13 +97,6 @@ class Client:
                 bytes_received += len(chunk)
 
             return b''.join(chunks)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        logging.debug('Exiting')
-        self.socket.__exit__(exc_type, exc_val, exc_tb)
 
     def receive_unpickled(self):
         return pickle.loads(self.receive())
