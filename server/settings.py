@@ -2,7 +2,6 @@ import logging
 
 SERVER_NAME = 'localhost'
 SERVER_PORT = 4020
-DB_ENGINE = 'sqlite:///../websites.db'
 DEBUG = True
 
 
